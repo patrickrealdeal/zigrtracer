@@ -47,7 +47,7 @@ pub const Sphere = struct {
         const sqrtd = @sqrt(discriminant);
 
         // Find the nearest root that lies in the acceptable range
-        var root = (h - sqrtd) / a; // the minus solution  <-(t)----
+        var root = (h - sqrtd) / a; // the minus solution  --(t)---->
         if (root <= r_tmin or r_tmax <= root) {
             root = (h + sqrtd) / a; // the plus solution   -------(t)->
             if (root <= r_tmin or r_tmax <= root) {
