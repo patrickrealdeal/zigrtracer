@@ -51,7 +51,7 @@ pub fn unit(v: anytype) @TypeOf(v) {
     return v / @as(T, @splat(len_vec));
 }
 
-pub inline fn f3(n: anytype) Vec3 {
+pub inline fn fill(n: anytype) Vec3 {
     const type_info = @typeInfo(@TypeOf(n));
     switch (type_info) {
         .comptime_int, .int => return @splat(@floatFromInt(n)),

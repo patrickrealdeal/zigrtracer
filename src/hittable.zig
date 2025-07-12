@@ -2,6 +2,7 @@ const std = @import("std");
 const vec3 = @import("vector3.zig");
 const Ray = @import("ray.zig");
 
+const Allocator = std.mem.Allocator;
 const Point = vec3.Point;
 const Vec3 = vec3.Vec3;
 
@@ -26,6 +27,38 @@ pub const Hittable = union(enum) {
         return switch (self.*) {
             .sphere => |*s| s.hit(r, r_tmin, r_tmax, rec),
         };
+    }
+};
+
+pub const HittableList = struct {
+    objects: std.ArrayList(Hittable),
+
+    pub fn init(allocator: Allocator) HittableList {
+        return .{ .objects = std.ArrayList(Hittable).init(allocator) };
+    }
+
+    pub fn deinit(self: *HittableList) void {
+        self.objects.deinit();
+    }
+
+    pub fn add(self: *HittableList, object: anytype) !void {
+        try self.objects.append(object);
+    }
+
+    pub fn hit(self: *HittableList, r: *const Ray, r_tmin: f64, r_tmax: f64, rec: *HitRecord) bool {
+        var temp_rec: HitRecord = undefined;
+        var hit_anything = false;
+        var closest_so_far = r_tmax;
+
+        for (self.objects.items) |*obj| {
+            if (obj.hit(r, r_tmin, closest_so_far, &temp_rec)) {
+                hit_anything = true;
+                closest_so_far = temp_rec.t;
+                rec.* = temp_rec;
+            }
+        }
+
+        return hit_anything;
     }
 };
 
@@ -57,7 +90,7 @@ pub const Sphere = struct {
 
         rec.t = root;
         rec.p = r.at(rec.t);
-        var outward_normal = (rec.p - self.center) / vec3.f3(self.radius);
+        var outward_normal = (rec.p - self.center) / vec3.fill(self.radius);
         rec.set_face_normal(r, &outward_normal);
 
         return true;
