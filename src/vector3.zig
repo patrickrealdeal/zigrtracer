@@ -1,4 +1,6 @@
 const std = @import("std");
+const random = @import("utility.zig");
+const Random = random.Random;
 
 pub const Vec3 = @Vector(3, f64);
 pub const Point = Vec3;
@@ -18,7 +20,7 @@ pub inline fn len(v: anytype) vtype(@TypeOf(v)) {
     return std.math.sqrt(dot(v, v));
 }
 
-pub inline fn len_squared(v: anytype) vtype(@TypeOf(v)) {
+pub inline fn lenSquared(v: anytype) vtype(@TypeOf(v)) {
     return @reduce(.Add, v * v);
 }
 
@@ -60,9 +62,38 @@ pub inline fn fill(n: anytype) Vec3 {
     return @splat(n);
 }
 
+pub fn randomV(prng: *Random.DefaultPrng) Vec3 {
+    const rng = prng.random();
+    return Vec3{ random.genRand(rng, f64), random.genRand(rng, f64), random.genRand(rng, f64) };
+}
+
+pub fn randomInRange(prng: *Random.DefaultPrng, min: f64, max: f64) Vec3 {
+    const rng = prng.random();
+    return Vec3{ random.genRandRange(rng, f64, min, max), random.genRandRange(rng, f64, min, max), random.genRandRange(rng, f64, min, max) };
+}
+
+pub fn randomUnit(prng: *Random.DefaultPrng) Vec3 {
+    while (true) {
+        const p = randomInRange(prng, -1, 1);
+        const lensq = lenSquared(p);
+        if (1e-160 < lensq and lensq <= 1) {
+            return p / fill(@sqrt(lensq));
+        }
+    }
+}
+
+pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
+    const on_unit_sphere = randomUnit(prng);
+    if (dot(on_unit_sphere, normal.*) > 0) { // In the same hemisphere as the normal
+        return on_unit_sphere;
+    } else {
+        return -on_unit_sphere;
+    }
+}
+
 inline fn ensureVector(comptime T: type) type {
     if (@typeInfo(T) != .vector) {
-        std.debug.print("T type: {?}\n",.{ @TypeOf(T)});
+        std.debug.print("T type: {?}\n", .{@TypeOf(T)});
         @compileError("ensureTypeIsVector: type is not a vector");
     }
     return T;

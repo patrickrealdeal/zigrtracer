@@ -15,18 +15,6 @@ const Color = color.Color;
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
-fn ray_color(r: *const Ray, world: *HittableList) Color {
-    var rec: HitRecord = undefined;
-
-    if (world.hit(r, 0, std.math.floatMax(f64), &rec)) {
-        return vec3.fill(0.5) * (rec.normal + Color{ 1, 1, 1 });
-    }
-
-    const unit_direction = vec3.unit(r.dir);
-    const a = 0.5 * (unit_direction[1] + 1.0);
-    return (vec3.fill(1.0 - a) * Color{ 1, 1, 1 }) + (vec3.fill(a) * Color{ 0.5, 0.7, 1.0 });
-}
-
 pub fn main() !void {
     var dba: std.heap.DebugAllocator(.{}) = .init;
     const allocator = dba.allocator();
@@ -35,7 +23,7 @@ pub fn main() !void {
     // World
     var world: HittableList = .init(allocator);
     defer world.deinit();
-    
+
     const sphere0 = Hittable{ .sphere = .{ .center = Point{ 0, 0, -1 }, .radius = 0.5 } };
     const sphere1 = Hittable{ .sphere = .{ .center = Point{ 0, -100.5, -1 }, .radius = 100 } };
     try world.add(sphere0);

@@ -69,9 +69,9 @@ pub const Sphere = struct {
     pub fn hit(self: *Sphere, r: *const Ray, r_tmin: f64, r_tmax: f64, rec: *HitRecord) bool {
         // sphere math
         const oc = self.center - r.origin;
-        const a = vec3.len_squared(r.dir);
+        const a = vec3.lenSquared(r.dir);
         const h = vec3.dot(r.dir, oc);
-        const c = vec3.len_squared(oc) - self.radius * self.radius;
+        const c = vec3.lenSquared(oc) - self.radius * self.radius;
 
         const discriminant = h * h - a * c;
         if (discriminant < 0) {
