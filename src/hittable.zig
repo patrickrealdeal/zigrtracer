@@ -1,6 +1,7 @@
 const std = @import("std");
 const vec3 = @import("vector3.zig");
 const Ray = @import("ray.zig");
+const Material = @import("material.zig").Material;
 
 const Allocator = std.mem.Allocator;
 const Point = vec3.Point;
@@ -11,6 +12,7 @@ pub const HitRecord = struct {
     normal: Vec3, // Orientation of the surface at p
     t: f64,
     front_face: bool,
+    mat: *const Material,
 
     fn set_face_normal(self: *HitRecord, r: *const Ray, outward_normal: *Vec3) void {
         // Set the hit_record normal vector
@@ -65,9 +67,10 @@ pub const HittableList = struct {
 pub const Sphere = struct {
     center: Point,
     radius: f64,
+    mat: *const Material,
 
     pub fn hit(self: *Sphere, r: *const Ray, r_tmin: f64, r_tmax: f64, rec: *HitRecord) bool {
-        // sphere math
+        // NOTE: sphere math
         const oc = self.center - r.origin;
         const a = vec3.lenSquared(r.dir);
         const h = vec3.dot(r.dir, oc);
@@ -92,6 +95,7 @@ pub const Sphere = struct {
         rec.p = r.at(rec.t);
         var outward_normal = (rec.p - self.center) / vec3.fill(self.radius);
         rec.set_face_normal(r, &outward_normal);
+        rec.mat = self.mat;
 
         return true;
     }

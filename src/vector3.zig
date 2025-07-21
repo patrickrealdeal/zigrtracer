@@ -16,7 +16,6 @@ inline fn vsize(comptime T: type) comptime_int {
 }
 
 pub inline fn len(v: anytype) vtype(@TypeOf(v)) {
-    //_ = ensureVector(v);
     return std.math.sqrt(dot(v, v));
 }
 
@@ -89,6 +88,15 @@ pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
     } else {
         return -on_unit_sphere;
     }
+}
+
+pub fn nearZero(v: anytype) bool {
+    const s = 1e-8;
+    return @reduce(.And, @abs(v) < fill(s));
+}
+
+pub fn reflect(v: anytype, n: anytype) @TypeOf(v) {
+    return v - fill(2 * dot(v, n)) * n;
 }
 
 inline fn ensureVector(comptime T: type) type {

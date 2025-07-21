@@ -24,6 +24,7 @@ pub const Camera = struct {
     samples_per_pixel: u32 = 100,
     pixel_samples_scale: f64,
     prng: Random.DefaultPrng,
+    max_depth: u8,
 
     pub fn init() Camera {
         // Image
@@ -32,6 +33,7 @@ pub const Camera = struct {
         const samples_per_pixel: u32 = 100;
         const pixel_samples_scale: f64 = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
         const prng = Random.DefaultPrng.init(@intCast(std.time.nanoTimestamp()));
+        const max_depth = 50;
 
         // calculate image height and ensure that its at least 1
         var image_height: u32 = @as(u32, @intFromFloat(image_width / aspect_ratio));
@@ -67,6 +69,7 @@ pub const Camera = struct {
             .samples_per_pixel = samples_per_pixel,
             .pixel_samples_scale = pixel_samples_scale,
             .prng = prng,
+            .max_depth = max_depth,
         };
     }
 
@@ -80,7 +83,7 @@ pub const Camera = struct {
                 var pixel_color = Color{ 0, 0, 0 };
                 for (0..self.samples_per_pixel) |_| {
                     const r = self.getRay(@floatFromInt(x), @floatFromInt(y));
-                    pixel_color += rayColor(self, &r, world);
+                    pixel_color += rayColor(self, &r, self.max_depth, world);
                 }
                 pixel_color *= vec3.fill(self.pixel_samples_scale);
                 try color.write_color(stdout, &pixel_color);
@@ -104,13 +107,23 @@ pub const Camera = struct {
         return Vec3{ random.genRand(rng, f64) - 0.5, random.genRand(rng, f64) - 0.5, 0 };
     }
 
-    fn rayColor(self: *Camera, r: *const Ray, world: *HittableList) Color {
+    fn rayColor(self: *Camera, r: *const Ray, depth: u8, world: *HittableList) Color {
+        // If we exceed the ray bounce limit, no more light is gathered
+        if (depth <= 0) {
+            return Color{ 0, 0, 0 };
+        }
+
         var rec: HitRecord = undefined;
 
-        if (world.hit(r, 0, std.math.floatMax(f64), &rec)) {
-            const direction = vec3.randomOnHemisphere(&self.prng, &rec.normal);
-            const ray = Ray{ .origin = rec.p, .dir = direction };
-            return vec3.fill(0.5) * rayColor(self, &ray, world);
+        if (world.hit(r, 0.001, std.math.floatMax(f64), &rec)) {
+            var ray_scattered: Ray = undefined;
+            var attenuation: Color = undefined;
+
+            if (rec.mat.scatter(self, r, &rec, &attenuation, &ray_scattered)) {
+                return attenuation * rayColor(self, &ray_scattered, depth - 1, world);
+            } else {
+                return Color{ 0, 0, 0 };
+            }
         }
 
         const unit_direction = vec3.unit(r.dir);
