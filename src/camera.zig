@@ -52,12 +52,12 @@ pub const Camera = struct {
         const viewport_v = Vec3{ 0, -viewport_height, 0 };
 
         // calcualte the horizontal and verical delta vectors from pixel to pixel
-        const pixel_delta_u = viewport_u / vec3.fill(image_width);
-        const pixel_delta_v = viewport_v / vec3.fill(image_height);
+        const pixel_delta_u = viewport_u / vec3.splat(image_width);
+        const pixel_delta_v = viewport_v / vec3.splat(image_height);
 
         // calculate the location of the upper left pixel
-        const viewport_upper_left = camera_center - Vec3{ 0, 0, focal_length } - viewport_u / vec3.fill(2.0) - viewport_v / vec3.fill(2.0);
-        const pixel00_loc = viewport_upper_left + vec3.fill(0.5) * (pixel_delta_u + pixel_delta_v);
+        const viewport_upper_left = camera_center - Vec3{ 0, 0, focal_length } - viewport_u / vec3.splat(2.0) - viewport_v / vec3.splat(2.0);
+        const pixel00_loc = viewport_upper_left + vec3.splat(0.5) * (pixel_delta_u + pixel_delta_v);
 
         return Camera{
             .image_height = image_height,
@@ -85,7 +85,7 @@ pub const Camera = struct {
                     const r = self.getRay(@floatFromInt(x), @floatFromInt(y));
                     pixel_color += rayColor(self, &r, self.max_depth, world);
                 }
-                pixel_color *= vec3.fill(self.pixel_samples_scale);
+                pixel_color *= vec3.splat(self.pixel_samples_scale);
                 try color.write_color(stdout, &pixel_color);
             }
         }
@@ -96,7 +96,7 @@ pub const Camera = struct {
         // Construct a camera ray originating from the origin and directed at randomly sampled
         // point around the pixel location i, j.
         const offset = sampleSquared(&self.prng);
-        const pixel_sample = self.pixel00_loc + ((vec3.fill(x + offset[0])) * self.pixel_delta_u) + ((vec3.fill(y + offset[1])) * self.pixel_delta_v);
+        const pixel_sample = self.pixel00_loc + ((vec3.splat(x + offset[0])) * self.pixel_delta_u) + ((vec3.splat(y + offset[1])) * self.pixel_delta_v);
         const ray_origin = self.center;
         const ray_direction = pixel_sample - ray_origin;
         return Ray{ .origin = ray_origin, .dir = ray_direction };
@@ -113,9 +113,9 @@ pub const Camera = struct {
             return Color{ 0, 0, 0 };
         }
 
-        var rec: HitRecord = undefined;
-
-        if (world.hit(r, 0.001, std.math.floatMax(f64), &rec)) {
+        const hit_res = world.hit(r, 0.001, std.math.floatMax(f64));
+        if (hit_res.is_hit) {
+            var rec: HitRecord = hit_res.rec.?;
             var ray_scattered: Ray = undefined;
             var attenuation: Color = undefined;
 
@@ -128,6 +128,6 @@ pub const Camera = struct {
 
         const unit_direction = vec3.unit(r.dir);
         const a = 0.5 * (unit_direction[1] + 1.0);
-        return (vec3.fill(1.0 - a) * Color{ 1, 1, 1 }) + (vec3.fill(a) * Color{ 0.5, 0.7, 1.0 });
+        return (vec3.splat(1.0 - a) * Color{ 1, 1, 1 }) + (vec3.splat(a) * Color{ 0.5, 0.7, 1.0 });
     }
 };

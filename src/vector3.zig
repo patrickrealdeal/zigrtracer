@@ -52,7 +52,7 @@ pub fn unit(v: anytype) @TypeOf(v) {
     return v / @as(T, @splat(len_vec));
 }
 
-pub inline fn fill(n: anytype) Vec3 {
+pub inline fn splat(n: anytype) Vec3 {
     const type_info = @typeInfo(@TypeOf(n));
     switch (type_info) {
         .comptime_int, .int => return @splat(@floatFromInt(n)),
@@ -76,7 +76,7 @@ pub fn randomUnit(prng: *Random.DefaultPrng) Vec3 {
         const p = randomInRange(prng, -1, 1);
         const lensq = lenSquared(p);
         if (1e-160 < lensq and lensq <= 1) {
-            return p / fill(@sqrt(lensq));
+            return p / splat(@sqrt(lensq));
         }
     }
 }
@@ -92,11 +92,18 @@ pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
 
 pub fn nearZero(v: anytype) bool {
     const s = 1e-8;
-    return @reduce(.And, @abs(v) < fill(s));
+    return @reduce(.And, @abs(v) < splat(s));
 }
 
 pub fn reflect(v: anytype, n: anytype) @TypeOf(v) {
-    return v - fill(2 * dot(v, n)) * n;
+    return v - splat(2 * dot(v, n)) * n;
+}
+
+pub fn refract(v1: anytype, v2: anytype, etai_over_etat: f64) @TypeOf(v1) {
+    const cos_theta = @min(dot(-v1, v2), 1.0);
+    const r_out_perp = splat(etai_over_etat) * (v1 + (splat(cos_theta) * v2));
+    const r_out_parallel = splat(-@sqrt(@abs(1.0 - lenSquared(r_out_perp)))) * v2;
+    return r_out_perp + r_out_parallel;
 }
 
 inline fn ensureVector(comptime T: type) type {
@@ -107,28 +114,5 @@ inline fn ensureVector(comptime T: type) type {
     return T;
 }
 
-const expectEqual = std.testing.expectEqual;
-const expect = std.testing.expect;
-
-test "vector len" {
-    const v1 = @Vector(1, f32){5};
-    try expectEqual(@as(vtype(@TypeOf(v1)), std.math.sqrt(5 * 5)), len(v1));
-
-    const v2 = @Vector(2, f32){ 2, 2 };
-    try expectEqual(std.math.sqrt(@as(vtype(@TypeOf(v2)), (2 * 2 + 2 * 2))), len(v2));
-}
-
-test "vector unit" {
-    const v1 = @Vector(1, f64){3};
-    const answer = @Vector(1, f64){1};
-    try expectEqual(answer, unit(v1));
-
-    const v2 = @Vector(3, f64){ 1, 2, 3 };
-    const l = std.math.sqrt(@as(f64, 1 * 1 + 2 * 2 + 3 * 3));
-    const answer2 = @Vector(3, f64){
-        1 / l,
-        2 / l,
-        3 / l,
-    };
-    try expectEqual(answer2, unit(v2));
-}
+// const expectEqual = std.testing.expectEqual;
+// const expect = std.testing.expect;

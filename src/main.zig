@@ -27,17 +27,21 @@ pub fn main() !void {
 
     const material_ground = mat.Lambertian{ .albedo = Color{ 0.8, 0.8, 0.0 } };
     const material_center = mat.Lambertian{ .albedo = Color{ 0.1, 0.2, 0.5 } };
-    const material_left = mat.Metal{ .albedo = Color{ 0.8, 0.8, 0.8 } };
-    const material_right = mat.Metal{ .albedo = Color{ 0.8, 0.6, 0.2 } };
+    const material_left = mat.Dielectric{ .refraction_index = 1.50 };
+    const material_bubble = mat.Dielectric{ .refraction_index = 1.0 / 1.50 };
+    const material_right = mat.Metal{ .albedo = Color{ 0.8, 0.6, 0.2 }, .fuzz = 1.0 };
 
-    const sphere0 = Hittable{ .sphere = .{ .center = Point{ 0, -100.5, -1 }, .radius = 100.0, .mat = &mat.Material{ .lambertian = material_ground } } };
-    const sphere1 = Hittable{ .sphere = .{ .center = Point{ 0, 0.0, -1.2 }, .radius = 0.5, .mat = &mat.Material{ .lambertian = material_center } } };
-    const sphere2 = Hittable{ .sphere = .{ .center = Point{ -1.0, 0.0, -1.0 }, .radius = 0.5, .mat = &mat.Material{ .metal = material_left } } };
-    const sphere3 = Hittable{ .sphere = .{ .center = Point{ 1.0, 0.0, -1.0 }, .radius = 0.5, .mat = &mat.Material{ .metal = material_right } } };
+    const sphere0 = Hittable{ .sphere = .init(Point{ 0, -100.5, -1 }, 100.0, &mat.Material{ .lambertian = material_ground }) };
+    const sphere1 = Hittable{ .sphere = .init(Point{ 0, 0.0, -1.2 }, 0.5, &mat.Material{ .lambertian = material_center }) };
+    const sphere2 = Hittable{ .sphere = .init(Point{ -1.0, 0.0, -1.0 }, 0.5, &mat.Material{ .dielectric = material_left }) };
+    const sphere3 = Hittable{ .sphere = .init(Point{ -1.0, 0.0, -1.0 }, 0.4, &mat.Material{ .dielectric = material_bubble }) };
+    const sphere4 = Hittable{ .sphere = .init(Point{ 1.0, 0.0, -1.0 }, 0.5, &mat.Material{ .metal = material_right }) };
+
     try world.add(sphere0);
     try world.add(sphere1);
     try world.add(sphere2);
     try world.add(sphere3);
+    try world.add(sphere4);
 
     var camera: Camera = .init();
     try camera.render(&world);
