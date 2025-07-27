@@ -7,14 +7,12 @@ const Sphere = @import("hittable.zig").Sphere;
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
 const HittableList = @import("hittable.zig").HittableList;
-const Camera = @import("camera.zig").Camera;
+const camera = @import("camera.zig");
+const Progress = std.Progress;
 
 const Vec3 = vec3.Vec3;
 const Point = vec3.Point;
 const Color = color.Color;
-
-const stdout = std.io.getStdOut().writer();
-const stderr = std.io.getStdErr().writer();
 
 pub fn main() !void {
     var dba: std.heap.DebugAllocator(.{}) = .init;
@@ -43,6 +41,9 @@ pub fn main() !void {
     try world.add(sphere3);
     try world.add(sphere4);
 
-    var camera: Camera = .init();
-    try camera.render(&world);
+    var wbuf: [4096]u8 = undefined;
+    var file_writer = std.fs.File.stdout().writer(&wbuf);
+    const out = &file_writer.interface;
+
+    try camera.render(out, &world);
 }

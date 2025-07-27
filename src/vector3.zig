@@ -1,9 +1,11 @@
 const std = @import("std");
-const random = @import("utility.zig");
-const Random = random.Random;
+const Random = std.Random;
+const Writer = std.io.Writer;
 
 pub const Vec3 = @Vector(3, f64);
 pub const Point = Vec3;
+
+pub const zero: Vec3 = .{ 0, 0, 0 };
 
 pub fn vtype(comptime T: type) type {
     _ = ensureVector(T);
@@ -61,24 +63,41 @@ pub inline fn splat(n: anytype) Vec3 {
     return @splat(n);
 }
 
-pub fn randomV(prng: *Random.DefaultPrng) Vec3 {
-    const rng = prng.random();
-    return Vec3{ random.genRand(rng, f64), random.genRand(rng, f64), random.genRand(rng, f64) };
+pub fn toGamma(color: f64) f64 {
+    return if (color > 0) @sqrt(color) else 0;
 }
 
-pub fn randomInRange(prng: *Random.DefaultPrng, min: f64, max: f64) Vec3 {
-    const rng = prng.random();
-    return Vec3{ random.genRandRange(rng, f64, min, max), random.genRandRange(rng, f64, min, max), random.genRandRange(rng, f64, min, max) };
+pub fn random(r: std.Random) Vec3 {
+    return .{ r.float(f64), r.float(f64), r.float(f64) };
 }
 
-pub fn randomUnit(prng: *Random.DefaultPrng) Vec3 {
+pub fn randomRange(r: std.Random, min: f64, max: f64) Vec3 {
+    std.debug.assert(max >= min);
+    return .{
+        r.float(f64) * (max - min) + min,
+        r.float(f64) * (max - min) + min,
+        r.float(f64) * (max - min) + min,
+    };
+}
+
+pub fn randomUnit(r: Random) Vec3 {
     while (true) {
-        const p = randomInRange(prng, -1, 1);
-        const lensq = lenSquared(p);
-        if (1e-160 < lensq and lensq <= 1) {
-            return p / splat(@sqrt(lensq));
+        const v = randomRange(r, -1, 1);
+        const m2 = magnitude2(v);
+        if (std.math.floatEpsAt(f64, 0) < m2 and m2 <= 1) {
+            // if (1e-160 < m2 and m2 <= 1) {
+            return v / @sqrt(splat(m2));
         }
     }
+}
+
+pub fn magnitude(v: Vec3) f64 {
+    // const sqsum: f64 = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+    // return std.math.sqrt(sqsum);
+    return @sqrt(magnitude2(v));
+}
+pub fn magnitude2(v: Vec3) f64 {
+    return @reduce(.Add, v * v);
 }
 
 pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
@@ -104,6 +123,14 @@ pub fn refract(v1: anytype, v2: anytype, etai_over_etat: f64) @TypeOf(v1) {
     const r_out_perp = splat(etai_over_etat) * (v1 + (splat(cos_theta) * v2));
     const r_out_parallel = splat(-@sqrt(@abs(1.0 - lenSquared(r_out_perp)))) * v2;
     return r_out_perp + r_out_parallel;
+}
+
+pub const Color = std.fmt.Alt(Vec3, colorFormat);
+fn colorFormat(v: Vec3, w: *Writer) !void {
+    const _x: u8 = @intFromFloat(v[0] * 255.999);
+    const _y: u8 = @intFromFloat(v[1] * 255.999);
+    const _z: u8 = @intFromFloat(v[2] * 255.999);
+    try w.print("{d} {d} {d}\n", .{ _x, _y, _z });
 }
 
 inline fn ensureVector(comptime T: type) type {
