@@ -1,11 +1,9 @@
 const std = @import("std");
 const vec3 = @import("vector3.zig");
-const color = @import("color.zig");
 const Ray = @import("ray.zig");
 const HittableList = @import("hittable.zig").HittableList;
 const HitRecord = @import("hittable.zig").HitRecord;
-const random = @import("utility.zig");
-const Random = random.Random;
+const Random = std.Random;
 const Progress = std.Progress;
 const Writer = std.Io.Writer;
 
@@ -149,11 +147,6 @@ fn defocusDiskSample() Vec3 {
     // Returns a random point in the camera defocus disk.
     const p = vec3.randomInUnitDisk(rand);
     return camera_center + (vec3.splat(p[0]) * defocus_disk_u) + (vec3.splat(p[1]) * defocus_disk_v);
-}
-
-fn sampleSquared(prng: *Random.DefaultPrng) Vec3 {
-    const rng = prng.random();
-    return Vec3{ random.genRand(rng, f64) - 0.5, random.genRand(rng, f64) - 0.5, 0 };
 }
 
 fn rayColor(r: *const Ray, depth: u8, world: *HittableList) Vec3 {

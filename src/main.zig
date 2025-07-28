@@ -1,7 +1,6 @@
 const std = @import("std");
-const color = @import("color.zig");
 const vec3 = @import("vector3.zig");
-const mat = @import("material.zig");
+const Material = @import("material.zig").Material;
 const Ray = @import("ray.zig");
 const Sphere = @import("hittable.zig").Sphere;
 const HitRecord = @import("hittable.zig").HitRecord;
@@ -26,7 +25,7 @@ pub fn main() !void {
     var world: HittableList = .init(allocator);
     defer world.deinit();
 
-    var allocated_materials = std.ArrayList(*mat.Material).init(dba.allocator());
+    var allocated_materials = std.ArrayList(*Material).init(dba.allocator());
     defer {
         for (allocated_materials.items) |item| {
             dba.allocator().destroy(item);
@@ -42,7 +41,7 @@ pub fn main() !void {
             const center = Vec3{ x + 0.9 * camera.rand.float(f64), 0.2, y + 0.9 * camera.rand.float(f64) };
 
             if (vec3.magnitude(center - Vec3{ 4, 0.2, 0 }) > 0.9) {
-                const sphere_material = try dba.allocator().create(mat.Material);
+                const sphere_material = try dba.allocator().create(Material);
                 if (chose_mat < 0.8) {
                     // Diffuse
                     const albedo = vec3.random(camera.rand) * vec3.random(camera.rand);
@@ -63,15 +62,15 @@ pub fn main() !void {
         }
     }
 
-    var ground_material = mat.Material{ .lambertian = .{ .albedo = .{ 0.5, 0.5, 0.5 } } };
-    var material1 = mat.Material{ .dielectric = .{ .refraction_index = 1.50 } };
-    var material2 = mat.Material{ .lambertian = .{ .albedo = Vec3{ 0.4, 0.2, 0.1 } } };
-    var material3 = mat.Material{ .metal = .{ .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 } };
+    var ground_material = Material{ .lambertian = .{ .albedo = .{ 0.5, 0.5, 0.5 } } };
+    var material1 = Material{ .dielectric = .{ .refraction_index = 1.50 } };
+    var material2 = Material{ .lambertian = .{ .albedo = .{ 0.4, 0.2, 0.1 } } };
+    var material3 = Material{ .metal = .{ .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 } };
 
-    const sphere0 = Hittable{ .sphere = .init(Point{ 0, -1000, 0 }, 1000, &ground_material) }; // Ground
-    const sphere1 = Hittable{ .sphere = .init(Point{ 0, 1.0, 0.0 }, 1.0, &material1) };
-    const sphere2 = Hittable{ .sphere = .init(Point{ -4.0, 1.0, 0.0 }, 1.0, &material2) };
-    const sphere3 = Hittable{ .sphere = .init(Point{ 4, 1, 0.0 }, 1.0, &material3) };
+    const sphere0 = Hittable{ .sphere = .init(.{ 0, -1000, 0 }, 1000, &ground_material) }; // Ground
+    const sphere1 = Hittable{ .sphere = .init(.{ 0, 1.0, 0.0 }, 1.0, &material1) };
+    const sphere2 = Hittable{ .sphere = .init(.{ -4.0, 1.0, 0.0 }, 1.0, &material2) };
+    const sphere3 = Hittable{ .sphere = .init(.{ 4, 1, 0.0 }, 1.0, &material3) };
 
     try world.add(sphere0);
     try world.add(sphere1);
