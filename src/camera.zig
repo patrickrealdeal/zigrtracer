@@ -11,12 +11,11 @@ const Writer = std.Io.Writer;
 
 const Vec3 = vec3.Vec3;
 const Point = vec3.Point;
-//const Color = color.Color;
 
 pub const aspect_ratio = 16.0 / 9.0;
-pub const img_width = 500;
-pub const samples_per_pixel = 200;
-const max_depth = 10;
+pub const img_width = 800;
+pub const samples_per_pixel = 500;
+const max_depth = 50;
 
 const img_height = blk: {
     const h: comptime_int = @intFromFloat((img_width - 0.0) / aspect_ratio);
@@ -24,14 +23,29 @@ const img_height = blk: {
     break :blk h;
 };
 
+// Determine viewport dimensions
+const vfov = 20;
+const look_from = Vec3{ 13, 2, 3 };
+const look_at = Vec3{ 0, 0, 0 };
+const vup = Vec3{ 0, 1, 0 };
+const ww = vec3.unit(look_from - look_at);
+const u = vec3.unit(vec3.cross(vup, ww));
+const v = vec3.cross(ww, u);
+
+const defocus_angle = 0.6;
+const focus_dist = 10.0;
+
 const focal_length = 1.0;
-const viewport_height = 2.0;
+const theta = std.math.degreesToRadians(vfov);
+const hh = std.math.tan(theta / 2.0);
+
+const viewport_height = 2.0 * hh * focus_dist;
 const viewport_width = viewport_height * (img_width + 0.0) / (img_height - 0.0);
-const camera_center: Vec3 = vec3.zero;
+const camera_center: Vec3 = look_from;
 
 // Calculate the vectors across the horizontal and down the vertical viewport edges
-const viewport_u: Vec3 = .{ viewport_width, 0, 0 };
-const viewport_v: Vec3 = .{ 0, -viewport_height, 0 };
+const viewport_u: Vec3 = vec3.splat(viewport_width) * u;
+const viewport_v: Vec3 = vec3.splat(viewport_height) * -v;
 
 // Calculate the horizontal and vertical delta vectors from pixel to pixel.
 const pixel_delta_u: Vec3 = viewport_u / vec3.splat(img_width);
@@ -41,14 +55,18 @@ const pixel_delta_v: Vec3 = viewport_v / vec3.splat(img_height);
 const viewport_upper_left: Vec3 = blk: {
     const vu_half = viewport_u / vec3.splat(2);
     const vv_half = viewport_v / vec3.splat(2);
-    const focal3: Vec3 = .{ 0, 0, focal_length };
+    const focal3: Vec3 = vec3.splat(focus_dist) * ww;
     break :blk camera_center - focal3 - vu_half - vv_half;
 };
 const pixel00_loc = viewport_upper_left +
     (vec3.splat(0.5) * (pixel_delta_u + pixel_delta_v));
 
+const defocus_radius = focus_dist * std.math.tan(std.math.degreesToRadians(defocus_angle / 2.0));
+const defocus_disk_u = u * vec3.splat(defocus_radius);
+const defocus_disk_v = v * vec3.splat(defocus_radius);
+
 pub fn render(out: *Writer, world: *HittableList) !void {
-    // Render
+    // Progress Bar
     var pbuf: [1024]u8 = undefined;
     const pr = Progress.start(.{
         .draw_buffer = &pbuf,
@@ -59,7 +77,10 @@ pub fn render(out: *Writer, world: *HittableList) !void {
 
     const gpa = std.heap.smp_allocator;
 
+    // Allocates the images as single array of 3u8 components
+    // So each element is a pixel R, G, B
     var out_buf: [][3]u8 = try gpa.alloc([3]u8, img_width * img_height);
+    defer gpa.free(out_buf);
     var pool: std.Thread.Pool = undefined;
     try pool.init(.{ .allocator = gpa });
 
@@ -68,6 +89,7 @@ pub fn render(out: *Writer, world: *HittableList) !void {
     try out.print("P6\n{d} {d}\n255\n", .{ img_width, img_height });
 
     for (0..img_height) |y| {
+        // computes row in parallel
         pool.spawnWg(&wg, computeRow, .{
             y,
             out_buf[y * img_width ..][0..img_width],
@@ -75,6 +97,7 @@ pub fn render(out: *Writer, world: *HittableList) !void {
             pr,
         });
     }
+
     pool.waitAndWork(&wg);
 
     try out.writeSliceEndian(u8, std.mem.sliceAsBytes(out_buf), .little);
@@ -116,20 +139,16 @@ fn getRay(w: f64, h: f64) Ray {
     const pixel_sample = pixel00_loc +
         (vec3.splat(w + (offset[0])) * pixel_delta_u) +
         (vec3.splat(h + (offset[1])) * pixel_delta_v);
-    // const pixel_sample: Vec3 = @mulAdd(
-    //     Vec3,
-    //     vec.splat(h + offset[1]),
-    //     pixel_delta_v,
-    //     @mulAdd(
-    //         Vec3,
-    //         vec.splat(w + offset[0]),
-    //         pixel_delta_u,
-    //         pixel00_loc,
-    //     ),
-    // );
 
-    const ray_direction = pixel_sample - camera_center;
-    return Ray{ .origin = camera_center, .dir = ray_direction };
+    const ray_origin = if (defocus_angle <= 0) camera_center else defocusDiskSample();
+    const ray_direction = pixel_sample - ray_origin;
+    return Ray{ .origin = ray_origin, .dir = ray_direction };
+}
+
+fn defocusDiskSample() Vec3 {
+    // Returns a random point in the camera defocus disk.
+    const p = vec3.randomInUnitDisk(rand);
+    return camera_center + (vec3.splat(p[0]) * defocus_disk_u) + (vec3.splat(p[1]) * defocus_disk_v);
 }
 
 fn sampleSquared(prng: *Random.DefaultPrng) Vec3 {

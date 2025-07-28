@@ -17,11 +17,12 @@ inline fn vsize(comptime T: type) comptime_int {
     return @typeInfo(T).vector.len;
 }
 
-pub inline fn len(v: anytype) vtype(@TypeOf(v)) {
-    return std.math.sqrt(dot(v, v));
+pub fn magnitude(v: Vec3) f64 {
+    // const sqsum: f64 = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+    // return std.math.sqrt(sqsum);
+    return @sqrt(magnitude2(v));
 }
-
-pub inline fn lenSquared(v: anytype) vtype(@TypeOf(v)) {
+pub fn magnitude2(v: Vec3) f64 {
     return @reduce(.Add, v * v);
 }
 
@@ -50,7 +51,7 @@ pub fn cross(v1: anytype, v2: anytype) @TypeOf(v1) {
 
 pub fn unit(v: anytype) @TypeOf(v) {
     const T = @TypeOf(v);
-    const len_vec = len(v);
+    const len_vec = magnitude(v);
     return v / @as(T, @splat(len_vec));
 }
 
@@ -91,21 +92,22 @@ pub fn randomUnit(r: Random) Vec3 {
     }
 }
 
-pub fn magnitude(v: Vec3) f64 {
-    // const sqsum: f64 = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
-    // return std.math.sqrt(sqsum);
-    return @sqrt(magnitude2(v));
-}
-pub fn magnitude2(v: Vec3) f64 {
-    return @reduce(.Add, v * v);
-}
-
 pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
     const on_unit_sphere = randomUnit(prng);
     if (dot(on_unit_sphere, normal.*) > 0) { // In the same hemisphere as the normal
         return on_unit_sphere;
     } else {
         return -on_unit_sphere;
+    }
+}
+
+pub fn randomInUnitDisk(r: std.Random) Vec3 {
+    while (true) {
+        var p = randomRange(r, -1, 1);
+        p[2] = 0;
+        if (magnitude2(p) < 1) {
+            return p;
+        }
     }
 }
 
@@ -121,7 +123,7 @@ pub fn reflect(v: anytype, n: anytype) @TypeOf(v) {
 pub fn refract(v1: anytype, v2: anytype, etai_over_etat: f64) @TypeOf(v1) {
     const cos_theta = @min(dot(-v1, v2), 1.0);
     const r_out_perp = splat(etai_over_etat) * (v1 + (splat(cos_theta) * v2));
-    const r_out_parallel = splat(-@sqrt(@abs(1.0 - lenSquared(r_out_perp)))) * v2;
+    const r_out_parallel = splat(-@sqrt(@abs(1.0 - magnitude2(r_out_perp)))) * v2;
     return r_out_perp + r_out_parallel;
 }
 

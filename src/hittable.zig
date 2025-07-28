@@ -17,7 +17,7 @@ pub const HitRecord = struct {
     normal: Vec3, // Orientation of the surface at p
     t: f64,
     front_face: bool,
-    mat: *const Material,
+    mat: *Material,
 
     fn set_face_normal(self: *HitRecord, r: *const Ray, outward_normal: *Vec3) void {
         // Set the hit_record normal vector
@@ -39,9 +39,10 @@ pub const Hittable = union(enum) {
 
 pub const HittableList = struct {
     objects: std.ArrayList(Hittable),
+    allocator: Allocator,
 
     pub fn init(allocator: Allocator) HittableList {
-        return .{ .objects = std.ArrayList(Hittable).init(allocator) };
+        return .{ .objects = std.ArrayList(Hittable).init(allocator), .allocator = allocator };
     }
 
     pub fn deinit(self: *HittableList) void {
@@ -74,9 +75,9 @@ pub const HittableList = struct {
 pub const Sphere = struct {
     center: Point,
     radius: f64,
-    mat: *const Material,
+    mat: *Material,
 
-    pub fn init(center: Point, radius: f64, mat: *const Material) Sphere {
+    pub fn init(center: Point, radius: f64, mat: *Material) Sphere {
         std.debug.assert(radius > 0);
         return .{ .center = center, .radius = radius, .mat = mat };
     }
@@ -85,9 +86,9 @@ pub const Sphere = struct {
         var rec: HitRecord = undefined;
         // NOTE: sphere math
         const oc = self.center - r.origin;
-        const a = vec3.lenSquared(r.dir);
+        const a = vec3.magnitude2(r.dir);
         const h = vec3.dot(r.dir, oc);
-        const c = vec3.lenSquared(oc) - self.radius * self.radius;
+        const c = vec3.magnitude2(oc) - self.radius * self.radius;
 
         const discriminant = h * h - a * c;
         if (discriminant < 0) {

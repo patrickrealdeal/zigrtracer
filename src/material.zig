@@ -2,9 +2,9 @@ const std = @import("std");
 const Ray = @import("ray.zig");
 const HitRecord = @import("hittable.zig").HitRecord;
 const vec3 = @import("vector3.zig");
-const Color = @import("color.zig").Color;
 const camera = @import("camera.zig");
 
+const Vec3 = vec3.Vec3;
 const rand = camera.rand;
 
 pub const Material = union(enum) {
@@ -12,7 +12,7 @@ pub const Material = union(enum) {
     metal: Metal,
     dielectric: Dielectric,
 
-    pub fn scatter(self: *const Material, r_in: *const Ray, rec: *HitRecord, attenuation: *Color, scattered: *Ray) bool {
+    pub fn scatter(self: *Material, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
         return switch (self.*) {
             .lambertian => |*l| l.scatter(r_in, rec, attenuation, scattered),
             .metal => |*m| m.scatter(r_in, rec, attenuation, scattered),
@@ -22,9 +22,9 @@ pub const Material = union(enum) {
 };
 
 pub const Lambertian = struct {
-    albedo: Color,
+    albedo: Vec3,
 
-    pub fn scatter(self: *const Lambertian, r_in: *const Ray, rec: *HitRecord, attenuation: *Color, scattered: *Ray) bool {
+    pub fn scatter(self: *Lambertian, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
         _ = r_in;
         var scattered_direction = rec.normal + vec3.randomUnit(rand);
 
@@ -40,10 +40,10 @@ pub const Lambertian = struct {
 };
 
 pub const Metal = struct {
-    albedo: Color,
+    albedo: Vec3,
     fuzz: f64,
 
-    pub fn scatter(self: *const Metal, r_in: *const Ray, rec: *HitRecord, attenuation: *Color, scattered: *Ray) bool {
+    pub fn scatter(self: *Metal, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
         var reflected = vec3.reflect(r_in.dir, rec.normal);
         reflected = vec3.unit(reflected) + (vec3.splat(self.fuzz) * vec3.randomUnit(rand));
         scattered.* = Ray{ .origin = rec.p, .dir = reflected };
@@ -58,8 +58,8 @@ pub const Dielectric = struct {
     // the refractive index of the enclosing media
     refraction_index: f64,
 
-    pub fn scatter(self: *const Dielectric, r_in: *const Ray, rec: *HitRecord, attenuation: *Color, scattered: *Ray) bool {
-        attenuation.* = Color{ 1.0, 1.0, 1.0 };
+    pub fn scatter(self: *Dielectric, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        attenuation.* = Vec3{ 1.0, 1.0, 1.0 };
         const ri = if (rec.front_face) (1.0 / self.refraction_index) else self.refraction_index;
 
         const unit_direction = vec3.unit(r_in.dir);
