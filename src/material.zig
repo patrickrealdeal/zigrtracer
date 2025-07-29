@@ -5,7 +5,6 @@ const vec3 = @import("vector3.zig");
 const camera = @import("camera.zig");
 
 const Vec3 = vec3.Vec3;
-const rand = camera.rand;
 
 pub const Material = union(enum) {
     lambertian: Lambertian,
@@ -26,6 +25,7 @@ pub const Lambertian = struct {
 
     pub fn scatter(self: *Lambertian, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
         _ = r_in;
+        const rand = camera.rand_state.random();
         var scattered_direction = rec.normal + vec3.randomUnit(rand);
 
         // Catch degenerate scatter direction
@@ -44,6 +44,7 @@ pub const Metal = struct {
     fuzz: f64,
 
     pub fn scatter(self: *Metal, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        const rand = camera.rand_state.random();
         var reflected = vec3.reflect(r_in.dir, rec.normal);
         reflected = vec3.unit(reflected) + (vec3.splat(self.fuzz) * vec3.randomUnit(rand));
         scattered.* = Ray{ .origin = rec.p, .dir = reflected };
@@ -59,6 +60,7 @@ pub const Dielectric = struct {
     refraction_index: f64,
 
     pub fn scatter(self: *Dielectric, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        const rand = camera.rand_state.random();
         attenuation.* = Vec3{ 1.0, 1.0, 1.0 };
         const ri = if (rec.front_face) (1.0 / self.refraction_index) else self.refraction_index;
 

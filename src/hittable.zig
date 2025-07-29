@@ -17,7 +17,7 @@ pub const HitRecord = struct {
     normal: Vec3, // Orientation of the surface at p
     t: f64,
     front_face: bool,
-    mat: *Material,
+    mat: Material,
 
     fn set_face_normal(self: *HitRecord, r: *const Ray, outward_normal: *Vec3) void {
         // Set the hit_record normal vector
@@ -38,19 +38,18 @@ pub const Hittable = union(enum) {
 };
 
 pub const HittableList = struct {
-    objects: std.ArrayList(Hittable),
-    allocator: Allocator,
+    objects: std.ArrayListUnmanaged(Hittable),
 
-    pub fn init(allocator: Allocator) HittableList {
-        return .{ .objects = std.ArrayList(Hittable).init(allocator), .allocator = allocator };
+    pub fn init() HittableList {
+        return .{ .objects = std.ArrayListUnmanaged(Hittable).empty };
     }
 
-    pub fn deinit(self: *HittableList) void {
-        self.objects.deinit();
+    pub fn deinit(self: *HittableList, allocator: Allocator) void {
+        self.objects.deinit(allocator);
     }
 
-    pub fn add(self: *HittableList, object: anytype) !void {
-        try self.objects.append(object);
+    pub fn add(self: *HittableList, allocator: Allocator, object: anytype) !void {
+        try self.objects.append(allocator, object);
     }
 
     pub fn hit(self: *HittableList, r: *const Ray, r_tmin: f64, r_tmax: f64) HitResult {
@@ -75,9 +74,9 @@ pub const HittableList = struct {
 pub const Sphere = struct {
     center: Point,
     radius: f64,
-    mat: *Material,
+    mat: Material,
 
-    pub fn init(center: Point, radius: f64, mat: *Material) Sphere {
+    pub fn init(center: Point, radius: f64, mat: Material) Sphere {
         std.debug.assert(radius > 0);
         return .{ .center = center, .radius = radius, .mat = mat };
     }

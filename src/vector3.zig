@@ -92,15 +92,6 @@ pub fn randomUnit(r: Random) Vec3 {
     }
 }
 
-pub fn randomOnHemisphere(prng: *Random.DefaultPrng, normal: *Vec3) Vec3 {
-    const on_unit_sphere = randomUnit(prng);
-    if (dot(on_unit_sphere, normal.*) > 0) { // In the same hemisphere as the normal
-        return on_unit_sphere;
-    } else {
-        return -on_unit_sphere;
-    }
-}
-
 pub fn randomInUnitDisk(r: std.Random) Vec3 {
     while (true) {
         var p = randomRange(r, -1, 1);

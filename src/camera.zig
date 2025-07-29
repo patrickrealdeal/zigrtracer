@@ -10,8 +10,10 @@ const Writer = std.Io.Writer;
 const Vec3 = vec3.Vec3;
 const Point = vec3.Point;
 
+pub threadlocal var rand_state = std.Random.DefaultPrng.init(44);
+
 pub const aspect_ratio = 16.0 / 9.0;
-pub const img_width = 800;
+pub const img_width = 1920;
 pub const samples_per_pixel = 500;
 const max_depth = 50;
 
@@ -120,10 +122,8 @@ fn computeRow(h: usize, out: [][3]u8, world: *HittableList, pr: Progress.Node) v
     }
 }
 
-var rand_state = std.Random.DefaultPrng.init(42);
-pub const rand = rand_state.random();
-
 fn sampleSquare() Vec3 {
+    const rand = rand_state.random();
     return .{
         rand.float(f64) - 0.5,
         rand.float(f64) - 0.5,
@@ -145,6 +145,7 @@ fn getRay(w: f64, h: f64) Ray {
 
 fn defocusDiskSample() Vec3 {
     // Returns a random point in the camera defocus disk.
+    const rand = rand_state.random();
     const p = vec3.randomInUnitDisk(rand);
     return camera_center + (vec3.splat(p[0]) * defocus_disk_u) + (vec3.splat(p[1]) * defocus_disk_v);
 }
