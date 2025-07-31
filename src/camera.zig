@@ -13,8 +13,8 @@ const Point = vec3.Point;
 pub threadlocal var rand_state = std.Random.DefaultPrng.init(44);
 
 pub const aspect_ratio = 16.0 / 9.0;
-pub const img_width = 1920;
-pub const samples_per_pixel = 500;
+pub const img_width = 400;
+pub const samples_per_pixel = 50;
 const max_depth = 50;
 
 const img_height = blk: {
@@ -133,6 +133,7 @@ fn sampleSquare() Vec3 {
 
 fn getRay(w: f64, h: f64) Ray {
     @setFloatMode(.optimized);
+    const rand = rand_state.random();
     const offset = sampleSquare();
     const pixel_sample = pixel00_loc +
         (vec3.splat(w + (offset[0])) * pixel_delta_u) +
@@ -140,7 +141,8 @@ fn getRay(w: f64, h: f64) Ray {
 
     const ray_origin = if (defocus_angle <= 0) camera_center else defocusDiskSample();
     const ray_direction = pixel_sample - ray_origin;
-    return Ray{ .origin = ray_origin, .dir = ray_direction };
+    const ray_time = vec3.randomFloatRange(rand, 0.0, 0.5);
+    return Ray{ .origin = ray_origin, .dir = ray_direction, .tm = ray_time };
 }
 
 fn defocusDiskSample() Vec3 {

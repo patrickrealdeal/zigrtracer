@@ -18,10 +18,9 @@ inline fn vsize(comptime T: type) comptime_int {
 }
 
 pub fn magnitude(v: Vec3) f64 {
-    // const sqsum: f64 = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
-    // return std.math.sqrt(sqsum);
     return @sqrt(magnitude2(v));
 }
+
 pub fn magnitude2(v: Vec3) f64 {
     return @reduce(.Add, v * v);
 }
@@ -92,6 +91,11 @@ pub fn randomUnit(r: Random) Vec3 {
     }
 }
 
+pub fn randomFloatRange(r: std.Random, min_val: f64, max_val: f64) f64 {
+    const t = r.float(f64); // Get a random float between 0.0 and 1.0
+    return min_val + t * (max_val - min_val);
+}
+
 pub fn randomInUnitDisk(r: std.Random) Vec3 {
     while (true) {
         var p = randomRange(r, -1, 1);
@@ -126,6 +130,16 @@ fn colorFormat(v: Vec3, w: *Writer) !void {
     try w.print("{d} {d} {d}\n", .{ _x, _y, _z });
 }
 
+pub const ColorP6 = std.fmt.Alt(Vec3, colorFormatP6);
+pub fn colorFormatP6(v: Vec3, w: *Writer) !void {
+    const _x: u8 = @intFromFloat(toGamma(v[0]) * 255.999);
+    const _y: u8 = @intFromFloat(toGamma(v[1]) * 255.999);
+    const _z: u8 = @intFromFloat(toGamma(v[2]) * 255.999);
+    try w.writeByte(_x);
+    try w.writeByte(_y);
+    try w.writeByte(_z);
+}
+
 inline fn ensureVector(comptime T: type) type {
     if (@typeInfo(T) != .vector) {
         std.debug.print("T type: {?}\n", .{@TypeOf(T)});
@@ -133,6 +147,3 @@ inline fn ensureVector(comptime T: type) type {
     }
     return T;
 }
-
-// const expectEqual = std.testing.expectEqual;
-// const expect = std.testing.expect;

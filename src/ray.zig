@@ -6,6 +6,7 @@ const Self = @This();
 
 origin: Point,
 dir: vec3.Vec3,
+tm: f64 = 0,
 
 pub fn at(self: Self, t: f64) Point {
     return self.origin + vec3.splat(t) * self.dir;

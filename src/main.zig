@@ -7,6 +7,7 @@ const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
 const HittableList = @import("hittable.zig").HittableList;
 const camera = @import("camera.zig");
+const Allocator = std.mem.Allocator;
 const Progress = std.Progress;
 
 const Vec3 = vec3.Vec3;
@@ -25,6 +26,56 @@ pub fn main() !void {
 
     const rand = camera.rand_state.random();
 
+    for (0..22) |x| {
+        const a = @as(f64, @floatFromInt(x)) - 11;
+        for (0..22) |y| {
+            const b = @as(f64, @floatFromInt(y)) - 11;
+            const chose_mat = rand.float(f64);
+            const center = Vec3{ a + 0.9 * rand.float(f64), 0.2, b + 0.9 * rand.float(f64) };
+
+            if (vec3.magnitude(center - Vec3{ 4, 0.2, 0 }) > 0.9) {
+                var sphere_material: Material = undefined;
+                if (chose_mat < 0.8) {
+                    // Diffuse
+                    const center2 = center + Vec3{ 0, rand.float(f64), 0 };
+                    sphere_material = .{ .lambertian = .{ .albedo = vec3.random(rand) * vec3.random(rand) } };
+                    try world.add(allocator, Hittable{ .sphere = .initMoving(center, center2, 0.2, sphere_material) });
+                } else if (chose_mat < 0.95) {
+                    // Metal
+                    sphere_material = .{ .metal = .{ .albedo = vec3.randomRange(rand, 0.5, 1), .fuzz = rand.float(f64) } };
+                    try world.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
+                } else {
+                    // Dielectric
+                    sphere_material = .{ .dielectric = .{ .refraction_index = 1.5 } };
+                    try world.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
+                }
+            }
+        }
+    }
+
+    const ground_material = Material{ .lambertian = .{ .albedo = .{
+        std.math.pow(f64, 184.0 / 255.0, 2),
+        std.math.pow(f64, 184.0 / 255.0, 2),
+        std.math.pow(f64, 255.0 / 255.0, 2),
+    } } };
+    const material1 = Material{ .dielectric = .{ .refraction_index = 1.50 } };
+    const material2 = Material{ .lambertian = .{ .albedo = .{ 0.4, 0.2, 0.1 } } };
+    const material3 = Material{ .metal = .{ .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 } };
+
+    const sphere0 = Hittable{ .sphere = .init(.{ 0, -1000, 0 }, 1000, ground_material) }; // Ground
+    const sphere1 = Hittable{ .sphere = .init(.{ 0, 1.0, 0.0 }, 1.0, material1) };
+    const sphere2 = Hittable{ .sphere = .init(.{ -4.0, 1.0, 0.0 }, 1.0, material2) };
+    const sphere3 = Hittable{ .sphere = .init(.{ 4, 1, 0.0 }, 1.0, material3) };
+
+    try world.add(allocator, sphere0);
+    try world.add(allocator, sphere1);
+    try world.add(allocator, sphere2);
+    try world.add(allocator, sphere3);
+
+    try camera.render(out, &world);
+}
+
+fn renderSceneOne(allocator: Allocator, rand: std.Random, world: *HittableList) !void {
     for (0..22) |x| {
         const a = @as(f64, @floatFromInt(x)) - 11;
         for (0..22) |y| {
@@ -66,6 +117,4 @@ pub fn main() !void {
     try world.add(allocator, sphere1);
     try world.add(allocator, sphere2);
     try world.add(allocator, sphere3);
-
-    try camera.render(out, &world);
 }

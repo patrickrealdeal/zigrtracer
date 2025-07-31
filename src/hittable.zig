@@ -72,19 +72,26 @@ pub const HittableList = struct {
 };
 
 pub const Sphere = struct {
-    center: Point,
+    center: Ray,
     radius: f64,
     mat: Material,
 
     pub fn init(center: Point, radius: f64, mat: Material) Sphere {
         std.debug.assert(radius > 0);
-        return .{ .center = center, .radius = radius, .mat = mat };
+        return .{ .center = .{ .origin = center, .dir = vec3.zero }, .radius = radius, .mat = mat };
+    }
+
+    pub fn initMoving(center1: Point, center2: Point, radius: f64, mat: Material) Sphere {
+        return .{ .center = .{ .origin = center1, .dir = center2 - center1 }, .radius = radius, .mat = mat };
     }
 
     pub fn hit(self: *Sphere, r: *const Ray, r_tmin: f64, r_tmax: f64) HitResult {
+        // NOTE: To simulate movement we move the center during rendering from t = 0 to t = 1
+        const current_center = self.center.at(r.tm);
+        const oc = current_center - r.origin;
+
         var rec: HitRecord = undefined;
         // NOTE: sphere math
-        const oc = self.center - r.origin;
         const a = vec3.magnitude2(r.dir);
         const h = vec3.dot(r.dir, oc);
         const c = vec3.magnitude2(oc) - self.radius * self.radius;
@@ -106,7 +113,7 @@ pub const Sphere = struct {
 
         rec.t = root;
         rec.p = r.at(rec.t);
-        var outward_normal = (rec.p - self.center) / vec3.splat(self.radius);
+        var outward_normal = (rec.p - current_center) / vec3.splat(self.radius);
         rec.set_face_normal(r, &outward_normal);
         rec.mat = self.mat;
 
