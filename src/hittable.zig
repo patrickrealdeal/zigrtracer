@@ -6,10 +6,11 @@ const Material = @import("material.zig").Material;
 const Allocator = std.mem.Allocator;
 const Point = vec3.Point;
 const Vec3 = vec3.Vec3;
+const inf64 = std.math.inf(f64);
 
 const HitResult = struct {
     is_hit: bool,
-    rec: ?HitRecord,
+    rec: HitRecord,
 };
 
 pub const HitRecord = struct {
@@ -30,9 +31,9 @@ pub const HitRecord = struct {
 pub const Hittable = union(enum) {
     sphere: Sphere,
 
-    pub fn hit(self: *Hittable, r: *const Ray, r_tmin: f64, r_tmax: f64) HitResult {
+    pub fn hit(self: *Hittable, r: *const Ray, interval: Interval) ?HitResult {
         return switch (self.*) {
-            .sphere => |*s| s.hit(r, r_tmin, r_tmax),
+            .sphere => |*s| s.hit(r, interval),
         };
     }
 };
@@ -52,22 +53,43 @@ pub const HittableList = struct {
         try self.objects.append(allocator, object);
     }
 
-    pub fn hit(self: *HittableList, r: *const Ray, r_tmin: f64, r_tmax: f64) HitResult {
-        var rec: HitRecord = undefined;
-        var hit_anything = false;
-        var closest_so_far = r_tmax;
+    pub fn hit(self: *HittableList, r: *const Ray, interval: Interval) ?HitResult {
+        var hit_res: ?HitResult = null;
+        var closest_so_far = interval.max;
 
         for (self.objects.items) |*obj| {
-            const temp_hit = obj.hit(r, r_tmin, closest_so_far);
-            const temp_rec = temp_hit.rec;
-            if (temp_hit.is_hit) {
-                hit_anything = true;
-                closest_so_far = temp_rec.?.t;
-                rec = temp_rec.?;
+            if (obj.hit(r, .{ .min = interval.min, .max = closest_so_far })) |h| {
+                hit_res = h;
+                closest_so_far = hit_res.?.rec.t;
             }
         }
+        return hit_res;
+    }
+};
 
-        return .{ .is_hit = hit_anything, .rec = rec };
+pub const Interval = struct {
+    min: f64,
+    max: f64,
+
+    pub const empty: Interval = .{
+        .min = inf64,
+        .max = -inf64,
+    };
+    pub const universe: Interval = .{
+        .min = -inf64,
+        .max = inf64,
+    };
+
+    pub fn size(i: Interval) f64 {
+        return i.max - i.min;
+    }
+
+    pub fn contains(i: Interval, x: f64) bool {
+        return i.min <= x and x <= i.max;
+    }
+
+    pub fn surrounds(i: Interval, x: f64) bool {
+        return i.min < x and x < i.max;
     }
 };
 
@@ -85,7 +107,7 @@ pub const Sphere = struct {
         return .{ .center = .{ .origin = center1, .dir = center2 - center1 }, .radius = radius, .mat = mat };
     }
 
-    pub fn hit(self: *Sphere, r: *const Ray, r_tmin: f64, r_tmax: f64) HitResult {
+    pub fn hit(self: *Sphere, r: *const Ray, interval: Interval) ?HitResult {
         // NOTE: To simulate movement we move the center during rendering from t = 0 to t = 1
         const current_center = self.center.at(r.tm);
         const oc = current_center - r.origin;
@@ -98,16 +120,16 @@ pub const Sphere = struct {
 
         const discriminant = h * h - a * c;
         if (discriminant < 0) {
-            return .{ .is_hit = false, .rec = null };
+            return null;
         }
         const sqrtd = @sqrt(discriminant);
 
         // Find the nearest root that lies in the acceptable range
         var root = (h - sqrtd) / a; // the minus solution  --(t)---->
-        if (root <= r_tmin or r_tmax <= root) {
+        if (!interval.surrounds(root)) {
             root = (h + sqrtd) / a; // the plus solution   -------(t)->
-            if (root <= r_tmin or r_tmax <= root) {
-                return .{ .is_hit = false, .rec = rec };
+            if (!interval.surrounds(root)) {
+                return null;
             }
         }
 

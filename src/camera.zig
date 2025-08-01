@@ -77,7 +77,7 @@ pub fn render(out: *Writer, world: *HittableList) !void {
 
     const gpa = std.heap.smp_allocator;
 
-    // Allocates the images as single array of 3u8 components
+    // Allocates the image as single array of 3u8 components
     // So each element is a pixel R, G, B
     var out_buf: [][3]u8 = try gpa.alloc([3]u8, img_width * img_height);
     defer gpa.free(out_buf);
@@ -104,6 +104,7 @@ pub fn render(out: *Writer, world: *HittableList) !void {
     try out.flush();
 }
 
+/// Each thread computes a row of the image, the slice out
 fn computeRow(h: usize, out: [][3]u8, world: *HittableList, pr: Progress.Node) void {
     defer pr.completeOne();
 
@@ -155,19 +156,16 @@ fn defocusDiskSample() Vec3 {
 fn rayColor(r: *const Ray, depth: u8, world: *HittableList) Vec3 {
     // If we exceed the ray bounce limit, no more light is gathered
     if (depth <= 0) {
-        return .{ 0, 0, 0 };
+        return vec3.zero;
     }
 
-    const hit_res = world.hit(r, 0.001, std.math.floatMax(f64));
-    if (hit_res.is_hit) {
-        var rec: HitRecord = hit_res.rec.?;
-        var ray_scattered: Ray = undefined;
-        var attenuation: Vec3 = undefined;
+    if (world.hit(r, .{ .min = 0.001, .max = std.math.floatMax(f64) })) |hit_res| {
+        var rec: HitRecord = hit_res.rec;
 
-        if (rec.mat.scatter(r, &rec, &attenuation, &ray_scattered)) {
-            return attenuation * rayColor(&ray_scattered, depth - 1, world);
+        if (rec.mat.scatter(r, &rec)) |scatter| {
+            return scatter.attenuation * rayColor(&scatter.ray, depth - 1, world);
         } else {
-            return Vec3{ 0, 0, 0 };
+            return vec3.zero;
         }
     }
 

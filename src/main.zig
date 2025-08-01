@@ -72,6 +72,8 @@ pub fn main() !void {
     try world.add(allocator, sphere2);
     try world.add(allocator, sphere3);
 
+    // try renderSceneOne(allocator, rand, &world);
+
     try camera.render(out, &world);
 }
 

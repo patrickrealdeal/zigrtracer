@@ -10,7 +10,7 @@ pub const Material = union(enum) {
     lambertian: struct {
         albedo: Vec3,
 
-        pub fn scatter(self: *@This(), r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
             var scattered_direction = rec.normal + vec3.randomUnit(rand);
 
@@ -19,9 +19,14 @@ pub const Material = union(enum) {
                 scattered_direction = rec.normal;
             }
 
-            scattered.* = Ray{ .origin = rec.p, .dir = scattered_direction, .tm = r_in.tm };
-            attenuation.* = self.albedo;
-            return true;
+            return .{
+                .ray = .{
+                    .origin = rec.p,
+                    .dir = scattered_direction,
+                    .tm = r_in.tm,
+                },
+                .attenuation = self.albedo,
+            };
         }
     },
 
@@ -29,13 +34,19 @@ pub const Material = union(enum) {
         albedo: Vec3,
         fuzz: f64,
 
-        pub fn scatter(self: *@This(), r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
             var reflected = vec3.reflect(r_in.dir, rec.normal);
             reflected = vec3.unit(reflected) + (vec3.splat(self.fuzz) * vec3.randomUnit(rand));
-            scattered.* = Ray{ .origin = rec.p, .dir = reflected, .tm = r_in.tm };
-            attenuation.* = self.albedo;
-            return (vec3.dot(scattered.dir, rec.normal) > 0);
+
+            return .{
+                .ray = .{
+                    .origin = rec.p,
+                    .dir = reflected,
+                    .tm = r_in.tm,
+                },
+                .attenuation = self.albedo,
+            };
         }
     },
 
@@ -45,9 +56,8 @@ pub const Material = union(enum) {
         // the refractive index of the enclosing media
         refraction_index: f64,
 
-        pub fn scatter(self: *@This(), r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
-            attenuation.* = Vec3{ 1.0, 1.0, 1.0 };
             const ri = if (rec.front_face) (1.0 / self.refraction_index) else self.refraction_index;
 
             const unit_direction = vec3.unit(r_in.dir);
@@ -65,14 +75,20 @@ pub const Material = union(enum) {
             switch (outcome) {
                 .reflect => {
                     const direction = vec3.reflect(unit_direction, rec.normal);
-                    scattered.* = Ray{ .origin = rec.p, .dir = direction, .tm = r_in.tm };
+                    return .{
+                        .ray = .{ .origin = rec.p, .dir = direction },
+                        .attenuation = Vec3{ 1.0, 1.0, 1.0 },
+                    };
                 },
                 .refract => {
                     const direction = vec3.refract(unit_direction, rec.normal, ri);
-                    scattered.* = Ray{ .origin = rec.p, .dir = direction, .tm = r_in.tm };
+
+                    return .{
+                        .ray = .{ .origin = rec.p, .dir = direction, .tm = r_in.tm },
+                        .attenuation = Vec3{ 1.0, 1.0, 1.0 },
+                    };
                 },
             }
-            return true;
         }
 
         fn reflectance(cosine: f64, refraction_index: f64) f64 {
@@ -83,11 +99,14 @@ pub const Material = union(enum) {
         }
     },
 
-    pub fn scatter(self: *Material, r_in: *const Ray, rec: *HitRecord, attenuation: *Vec3, scattered: *Ray) bool {
-        return switch (self.*) {
-            .lambertian => |*l| l.scatter(r_in, rec, attenuation, scattered),
-            .metal => |*m| m.scatter(r_in, rec, attenuation, scattered),
-            .dielectric => |*d| d.scatter(r_in, rec, attenuation, scattered),
+    pub fn scatter(self: Material, r_in: *const Ray, rec: *HitRecord) ?Scatter {
+        return switch (self) {
+            inline else => |m| m.scatter(r_in, rec),
         };
     }
+};
+
+pub const Scatter = struct {
+    ray: Ray,
+    attenuation: Vec3,
 };
