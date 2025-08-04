@@ -86,9 +86,6 @@ pub fn main() !void {
     const world_tree = try BhvNode.init(allocator, hittable_pointers.items);
     var world: Hittable = .{ .bhv_node = world_tree };
     try camera.render(out, &world);
-
-    std.debug.print("Total BVH hit calls: {}\n", .{hittable.hit_calls});
-    std.debug.print("BVH nodes skipped: {}\n", .{hittable.nodes_skipped});
 }
 
 fn renderSceneOne(allocator: Allocator, rand: std.Random, world: *HittableList) !void {

@@ -106,6 +106,7 @@ pub fn render(out: *Writer, world: *Hittable) !void {
 
     try out.writeSliceEndian(u8, std.mem.sliceAsBytes(out_buf), .little);
     try out.flush();
+    std.debug.print("Done!!\n", .{});
 }
 
 /// Each thread computes a row of the image, the slice out
@@ -129,6 +130,7 @@ fn computeRow(h: usize, out: [][3]u8, world: *const Hittable, pr: Progress.Node)
 }
 
 fn sampleSquare() Vec3 {
+    @setFloatMode(.optimized);
     const rand = rand_state.random();
     return .{
         rand.float(f64) - 0.5,
@@ -160,7 +162,6 @@ fn defocusDiskSample() Vec3 {
 }
 
 fn rayColor(r: *const Ray, depth: u8, world: *const Hittable) Vec3 {
-    // If we exceed the ray bounce limit, no more light is gathered
     if (depth <= 0) {
         return vec3.zero;
     }

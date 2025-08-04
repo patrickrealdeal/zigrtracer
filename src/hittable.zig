@@ -9,9 +9,6 @@ const Point = vec3.Point;
 const Vec3 = vec3.Vec3;
 const inf64 = std.math.inf(f64);
 
-pub var hit_calls: usize = 0;
-pub var nodes_skipped: usize = 0;
-
 pub const HitResult = struct {
     is_hit: bool,
     rec: HitRecord = .empty,
