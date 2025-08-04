@@ -10,7 +10,7 @@ pub const Material = union(enum) {
     lambertian: struct {
         albedo: Vec3,
 
-        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *const HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
             var scattered_direction = rec.normal + vec3.randomUnit(rand);
 
@@ -34,7 +34,7 @@ pub const Material = union(enum) {
         albedo: Vec3,
         fuzz: f64,
 
-        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *const HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
             var reflected = vec3.reflect(r_in.dir, rec.normal);
             reflected = vec3.unit(reflected) + (vec3.splat(self.fuzz) * vec3.randomUnit(rand));
@@ -56,7 +56,7 @@ pub const Material = union(enum) {
         // the refractive index of the enclosing media
         refraction_index: f64,
 
-        pub fn scatter(self: @This(), r_in: *const Ray, rec: *HitRecord) ?Scatter {
+        pub fn scatter(self: @This(), r_in: *const Ray, rec: *const HitRecord) ?Scatter {
             const rand = camera.rand_state.random();
             const ri = if (rec.front_face) (1.0 / self.refraction_index) else self.refraction_index;
 
@@ -99,7 +99,7 @@ pub const Material = union(enum) {
         }
     },
 
-    pub fn scatter(self: Material, r_in: *const Ray, rec: *HitRecord) ?Scatter {
+    pub fn scatter(self: Material, r_in: *const Ray, rec: *const HitRecord) ?Scatter {
         return switch (self) {
             inline else => |m| m.scatter(r_in, rec),
         };

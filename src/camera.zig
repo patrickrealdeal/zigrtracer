@@ -2,7 +2,9 @@ const std = @import("std");
 const vec3 = @import("vector3.zig");
 const Ray = @import("ray.zig");
 const HittableList = @import("hittable.zig").HittableList;
+const Hittable = @import("hittable.zig").Hittable;
 const HitRecord = @import("hittable.zig").HitRecord;
+const HitResult = @import("hittable.zig").HitResult;
 const Random = std.Random;
 const Progress = std.Progress;
 const Writer = std.Io.Writer;
@@ -65,7 +67,9 @@ const defocus_radius = focus_dist * std.math.tan(std.math.degreesToRadians(defoc
 const defocus_disk_u = u * vec3.splat(defocus_radius);
 const defocus_disk_v = v * vec3.splat(defocus_radius);
 
-pub fn render(out: *Writer, world: *HittableList) !void {
+pub fn render(out: *Writer, world: *Hittable) !void {
+    @setFloatMode(.optimized);
+
     // Progress Bar
     var pbuf: [1024]u8 = undefined;
     const pr = Progress.start(.{
@@ -105,9 +109,10 @@ pub fn render(out: *Writer, world: *HittableList) !void {
 }
 
 /// Each thread computes a row of the image, the slice out
-fn computeRow(h: usize, out: [][3]u8, world: *HittableList, pr: Progress.Node) void {
+fn computeRow(h: usize, out: [][3]u8, world: *const Hittable, pr: Progress.Node) void {
     defer pr.completeOne();
 
+    @setFloatMode(.optimized);
     for (0..img_width) |w| {
         var pixel_color = Vec3{ 0, 0, 0 };
         for (0..samples_per_pixel) |_| {
@@ -134,6 +139,7 @@ fn sampleSquare() Vec3 {
 
 fn getRay(w: f64, h: f64) Ray {
     @setFloatMode(.optimized);
+
     const rand = rand_state.random();
     const offset = sampleSquare();
     const pixel_sample = pixel00_loc +
@@ -153,16 +159,14 @@ fn defocusDiskSample() Vec3 {
     return camera_center + (vec3.splat(p[0]) * defocus_disk_u) + (vec3.splat(p[1]) * defocus_disk_v);
 }
 
-fn rayColor(r: *const Ray, depth: u8, world: *HittableList) Vec3 {
+fn rayColor(r: *const Ray, depth: u8, world: *const Hittable) Vec3 {
     // If we exceed the ray bounce limit, no more light is gathered
     if (depth <= 0) {
         return vec3.zero;
     }
 
-    if (world.hit(r, .{ .min = 0.001, .max = std.math.floatMax(f64) })) |hit_res| {
-        var rec: HitRecord = hit_res.rec;
-
-        if (rec.mat.scatter(r, &rec)) |scatter| {
+    if (world.hit(r, .{ .min = 0.001, .max = std.math.inf(f64) })) |hit_res| {
+        if (hit_res.rec.mat.scatter(r, &hit_res.rec)) |scatter| {
             return scatter.attenuation * rayColor(&scatter.ray, depth - 1, world);
         } else {
             return vec3.zero;

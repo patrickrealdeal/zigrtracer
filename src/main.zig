@@ -5,7 +5,9 @@ const Ray = @import("ray.zig");
 const Sphere = @import("hittable.zig").Sphere;
 const HitRecord = @import("hittable.zig").HitRecord;
 const Hittable = @import("hittable.zig").Hittable;
+const hittable = @import("hittable.zig");
 const HittableList = @import("hittable.zig").HittableList;
+const BhvNode = @import("hittable.zig").BhvNode;
 const camera = @import("camera.zig");
 const Allocator = std.mem.Allocator;
 const Progress = std.Progress;
@@ -14,15 +16,17 @@ const Vec3 = vec3.Vec3;
 const Point = vec3.Point;
 
 pub fn main() !void {
-    const allocator = std.heap.smp_allocator;
+    var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+    //defer arena.deinit();
+    const allocator = arena.allocator();
 
     var wbuf: [4096]u8 = undefined;
     var file_writer = std.fs.File.stdout().writer(&wbuf);
     const out = &file_writer.interface;
 
     // World
-    var world: HittableList = .init();
-    defer world.deinit(allocator);
+    var list: HittableList = .init();
+    defer list.deinit(allocator);
 
     const rand = camera.rand_state.random();
 
@@ -39,15 +43,15 @@ pub fn main() !void {
                     // Diffuse
                     const center2 = center + Vec3{ 0, rand.float(f64), 0 };
                     sphere_material = .{ .lambertian = .{ .albedo = vec3.random(rand) * vec3.random(rand) } };
-                    try world.add(allocator, Hittable{ .sphere = .initMoving(center, center2, 0.2, sphere_material) });
+                    try list.add(allocator, Hittable{ .sphere = .initMoving(center, center2, 0.2, sphere_material) });
                 } else if (chose_mat < 0.95) {
                     // Metal
                     sphere_material = .{ .metal = .{ .albedo = vec3.randomRange(rand, 0.5, 1), .fuzz = rand.float(f64) } };
-                    try world.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
+                    try list.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
                 } else {
                     // Dielectric
                     sphere_material = .{ .dielectric = .{ .refraction_index = 1.5 } };
-                    try world.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
+                    try list.add(allocator, Hittable{ .sphere = .init(center, 0.2, sphere_material) });
                 }
             }
         }
@@ -67,14 +71,24 @@ pub fn main() !void {
     const sphere2 = Hittable{ .sphere = .init(.{ -4.0, 1.0, 0.0 }, 1.0, material2) };
     const sphere3 = Hittable{ .sphere = .init(.{ 4, 1, 0.0 }, 1.0, material3) };
 
-    try world.add(allocator, sphere0);
-    try world.add(allocator, sphere1);
-    try world.add(allocator, sphere2);
-    try world.add(allocator, sphere3);
+    try list.add(allocator, sphere0);
+    try list.add(allocator, sphere1);
+    try list.add(allocator, sphere2);
+    try list.add(allocator, sphere3);
 
     // try renderSceneOne(allocator, rand, &world);
+    var hittable_pointers = std.ArrayList(*Hittable).init(allocator);
+    defer hittable_pointers.deinit();
+    for (list.objects.items) |*obj| {
+        try hittable_pointers.append(obj);
+    }
 
+    const world_tree = try BhvNode.init(allocator, hittable_pointers.items);
+    var world: Hittable = .{ .bhv_node = world_tree };
     try camera.render(out, &world);
+
+    std.debug.print("Total BVH hit calls: {}\n", .{hittable.hit_calls});
+    std.debug.print("BVH nodes skipped: {}\n", .{hittable.nodes_skipped});
 }
 
 fn renderSceneOne(allocator: Allocator, rand: std.Random, world: *HittableList) !void {
