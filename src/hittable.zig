@@ -231,38 +231,32 @@ pub const BhvNode = struct {
 
             const mid = objects.len / 2;
 
-            const left_bhv_node_ptr = try init(allocator, objects[0..mid]);
-            left_node.* = .{ .bhv_node = left_bhv_node_ptr };
+            const bhv_left_child = try init(allocator, objects[0..mid]);
+            left_node.* = .{ .bhv_node = bhv_left_child };
 
-            const right_bhv_node_ptr = try init(allocator, objects[mid..objects.len]);
-            right_node.* = .{ .bhv_node = right_bhv_node_ptr };
+            const bhv_right_child = try init(allocator, objects[mid..objects.len]);
+            right_node.* = .{ .bhv_node = bhv_right_child };
 
             bbox = .initFromBox(left_node.bbox(), right_node.bbox());
         }
 
-        const result = try allocator.create(BhvNode);
-        result.* = BhvNode{
+        const bhv = try allocator.create(BhvNode);
+        bhv.* = BhvNode{
             .left = left_node,
             .right = right_node,
             .bbox = bbox,
         };
-        return result;
+        return bhv;
     }
 
     pub fn hit(self: *const BhvNode, r: *const Ray, interval: Interval) ?HitResult {
-        //hit_calls += 1;
-
         if (!self.bbox.hit(r, interval)) {
-            //nodes_skipped += 1;
             return null;
         }
 
         var hit_res: ?HitResult = null;
 
-        // Hit the left node first
         const hit_left = self.left.hit(r, interval);
-
-        // Hit the right node next but only if the left hit happened or if the right bbox is closer
         const hit_right = self.right.hit(r, .{ .min = interval.min, .max = (if (hit_left) |h| h.rec.t else interval.max) });
 
         if (hit_left) |h| hit_res = h;
